@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curhat Café - Dashboard Karyawan</title>
+    <!-- Memuat Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Animasi sorot untuk baris baru */
+        @keyframes highlight {
+            from { background-color: #1e3a8a; /* blue-800 */ }
+            to { background-color: transparent; }
+        }
+        .highlight-new {
+            animation: highlight 3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 sm:p-8">
+
+    <!-- == [BARU] Splash Screen Notifikasi == -->
+    <div id="splash-screen" class="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center z-50 transition-opacity duration-500 ease-out">
+        <!-- Icon Bell (SVG) -->
+        <svg class="w-16 h-16 text-blue-500 animate-pulse mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.017 5.454 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+        </svg>
+        <h1 class="text-3xl font-bold text-blue-300 mb-2">Memeriksa Permintaan Pelanggan...</h1>
+        <p class="text-lg text-gray-400">Mencari tahu apakah ada yang butuh teman.</p>
+    </div>
+    <!-- ================================== -->
+
+    <div id="dashboard-container" class="container mx-auto max-w-5xl hidden"> <!-- [DIUBAH] Tambah id & class 'hidden' -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-3xl font-bold text-blue-400">Dashboard Karyawan</h1>
+            
+            <!-- Filter Gender Karyawan -->
+            <div class="flex items-center gap-2">
+                <label for="gender-filter" class="text-sm font-medium text-gray-400">Tampilkan sebagai:</label>
+                <select id="gender-filter" class="px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white">
+                    <option value="🤝 Bebas">Semua (Admin)</option>
+                    <option value="🧑 Pria">Karyawan Pria</option>
+                    <option value="👩 Wanita">Karyawan Wanita</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Notifikasi Pesan Terbaru -->
+        <div id="notification-area" class="mb-6">
+            <!-- Pesan notifikasi akan muncul di sini -->
+            <div class="bg-gray-800 border-l-4 border-gray-600 text-gray-400 p-4 rounded-r-lg" role="alert">
+                <p class="font-medium">Belum ada permintaan baru yang sesuai...</p>
+            </div>
+        </div>
+
+        <!-- Tabel Permintaan -->
+        <div class="bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-max text-left">
+                    <thead class="border-b border-gray-700 bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Waktu</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Meja</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Nama</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Mood</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Topik</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider">Permintaan Gender</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider text-center">Status</th>
+                            <th class="px-4 py-3 text-sm font-semibold text-blue-300 uppercase tracking-wider text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="request-table-body" class="divide-y divide-gray-700">
+                        <!-- Data permintaan akan dimuat di sini oleh JavaScript -->
+                        <tr>
+                            <td colspan="8" class="px-4 py-6 text-center text-gray-500">Memuat data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    const tableBody = document.getElementById('request-table-body');
+    const notificationArea = document.getElementById('notification-area');
+    const genderFilter = document.getElementById('gender-filter');
+    const splashScreen = document.getElementById('splash-screen');
+    const dashboardContainer = document.getElementById('dashboard-container');
+
+    let currentUserGender = '🤝 Bebas'; // Default lihat semua
+
+    // ✅ Fungsi utama untuk load data
+    function loadRequests() {
+        let allRequests = [];
+        try {
+            allRequests = JSON.parse(localStorage.getItem('cafeRequests')) || [];
+        } catch (error) {
+            console.error("Gagal membaca localStorage:", error);
+        }
+
+        // Urutkan (baru di atas)
+        allRequests.sort((a, b) => {
+            if (a.status !== b.status) return a.status === 'Selesai' ? 1 : -1;
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+
+        // Filter berdasarkan gender
+        const filtered = allRequests.filter(req => {
+            if (currentUserGender === '🤝 Bebas') return true;
+            if (req.gender === '🤝 Bebas') return true;
+            return req.gender === currentUserGender;
+        });
+
+        // Kosongkan tabel
+        tableBody.innerHTML = '';
+
+        updateNotification(filtered.find(r => r.status === 'Baru'));
+
+        if (filtered.length === 0) {
+            tableBody.innerHTML = `<tr>
+                <td colspan="8" class="px-4 py-6 text-center text-gray-500">
+                    Belum ada permintaan yang sesuai.
+                </td>
+            </tr>`;
+            return;
+        }
+
+        filtered.forEach((req, index) => {
+            const tr = document.createElement('tr');
+            if (index === 0 && req.status === 'Baru') tr.classList.add('highlight-new');
+            if (req.status === 'Selesai') tr.classList.add('opacity-50', 'line-through');
+
+            const time = new Date(req.timestamp).toLocaleTimeString('id-ID', {
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            const statusBadge = req.status === 'Baru'
+                ? `<span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-900 text-blue-300">Baru</span>`
+                : `<span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-700 text-gray-400">Selesai</span>`;
+
+            const buttonHtml = req.status === 'Baru'
+                ? `<button data-timestamp="${req.timestamp}" class="complete-btn bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold py-1 px-3 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-400">
+                        Selesai
+                   </button>`
+                : `<button class="bg-gray-600 text-gray-400 text-xs font-bold py-1 px-3 rounded-full cursor-not-allowed" disabled>
+                        Selesai
+                   </button>`;
+
+            tr.innerHTML = `
+                <td class="px-4 py-3 text-sm text-gray-100">${time}</td>
+                <td class="px-4 py-3 text-sm text-gray-300">${req.meja}</td>
+                <td class="px-4 py-3 text-sm text-gray-300">${req.nama}</td>
+                <td class="px-4 py-3 text-sm text-gray-300">${req.mood}</td>
+                <td class="px-4 py-3 text-sm text-gray-300">${req.topik}</td>
+                <td class="px-4 py-3 text-sm text-gray-300">${req.gender}</td>
+                <td class="px-4 py-3 text-sm text-center">${statusBadge}</td>
+                <td class="px-4 py-3 text-sm text-center">${buttonHtml}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    // ✅ Update notifikasi
+    function updateNotification(latest) {
+        if (latest && latest.status === 'Baru') {
+            const moodEmoji = latest.mood.split(' ')[0];
+            notificationArea.innerHTML = `
+                <div class="bg-blue-900 border-l-4 border-blue-500 text-blue-200 p-4 rounded-r-lg shadow-md">
+                    <p class="font-bold text-lg mb-2 text-blue-300">Permintaan Baru!</p>
+                    <p>Ada pelanggan di <strong class="text-xl">${latest.meja}</strong> ingin ditemani ngobrol.</p>
+                    <ul class="list-disc list-inside mt-2 text-blue-300">
+                        <li><strong>Nama:</strong> ${latest.nama}</li>
+                        <li><strong>Mood:</strong> ${moodEmoji} ${latest.mood.split(' ')[1]}</li>
+                        <li><strong>Topik:</strong> ${latest.topik}</li>
+                        <li><strong>Permintaan Karyawan:</strong> ${latest.gender}</li>
+                    </ul>
+                </div>`;
+        } else {
+            notificationArea.innerHTML = `
+                <div class="bg-gray-800 border-l-4 border-gray-600 text-gray-400 p-4 rounded-r-lg">
+                    <p class="font-medium">Belum ada permintaan baru yang sesuai...</p>
+                </div>`;
+        }
+    }
+
+    // ✅ Tandai selesai
+    function markAsComplete(timestamp) {
+        let allRequests = JSON.parse(localStorage.getItem('cafeRequests')) || [];
+        allRequests = allRequests.map(req => req.timestamp === timestamp ? { ...req, status: 'Selesai' } : req);
+        localStorage.setItem('cafeRequests', JSON.stringify(allRequests));
+        localStorage.setItem('newRequestTrigger', Date.now());
+        loadRequests();
+    }
+
+    // ✅ Tambahkan data dummy hanya sekali
+    function initDummyDataOnce() {
+        let requests = [];
+        try {
+            requests = JSON.parse(localStorage.getItem('cafeRequests')) || [];
+        } catch (e) {
+            console.error(e);
+        }
+
+        // hanya jika kosong
+        if (requests.length === 0) {
+            console.log("Inisialisasi data dummy awal...");
+            const dummyData = [
+                {
+                    timestamp: new Date().toISOString(),
+                    meja: "Meja #3",
+                    nama: "Dita",
+                    mood: "😊 Bahagia",
+                    topik: "🏠 Keluarga",
+                    gender: "🤝 Bebas",
+                    status: "Baru"
+                },
+                {
+                    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+                    meja: "Meja #7",
+                    nama: "Anonim",
+                    mood: "😢 Sedih",
+                    topik: "💔 Cinta",
+                    gender: "👩 Wanita",
+                    status: "Baru"
+                },
+                {
+                    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+                    meja: "Meja #5",
+                    nama: "Bagas",
+                    mood: "😐 Biasa saja",
+                    topik: "☕ Sekadar ditemani",
+                    gender: "🧑 Pria",
+                    status: "Selesai"
+                }
+            ];
+            localStorage.setItem('cafeRequests', JSON.stringify(dummyData));
+        }
+    }
+
+    // === EVENT LISTENER ===
+    document.addEventListener('DOMContentLoaded', () => {
+        initDummyDataOnce();
+        loadRequests();
+
+        // Splash screen animasi
+        setTimeout(() => {
+            splashScreen.classList.add('opacity-0');
+            setTimeout(() => {
+                splashScreen.classList.add('hidden');
+                dashboardContainer.classList.remove('hidden');
+                dashboardContainer.classList.add('transition-opacity', 'duration-300', 'opacity-100');
+            }, 500);
+        }, 1500);
+    });
+
+    genderFilter.addEventListener('change', e => {
+        currentUserGender = e.target.value;
+        loadRequests();
+    });
+
+    tableBody.addEventListener('click', e => {
+        if (e.target.classList.contains('complete-btn')) {
+            const timestamp = e.target.dataset.timestamp;
+            markAsComplete(timestamp);
+        }
+    });
+
+    window.addEventListener('storage', e => {
+        if (e.key === 'cafeRequests' || e.key === 'newRequestTrigger') {
+            loadRequests();
+        }
+    });
+</script>
+
+
+</body>
+</html>
